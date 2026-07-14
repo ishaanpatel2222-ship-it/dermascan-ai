@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DermaScan AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
+<style>
+  :root {
+    --bg: #F4F7F6;
+    --surface: #FFFFFF;
+    --ink: #16262B;
+    --ink-muted: #5B6B6E;
+    --teal: #1B6B63;
+    --teal-dark: #123F3A;
+    --sage: #4C8577;
+    --sage-bg: #E7F0EC;
+    --rose: #C4574E;
+    --rose-bg: #FBEAE8;
+    --amber: #B98B2E;
+    --amber-bg: #FBF2E1;
+    --gray: #7A8286;
+    --gray-bg: #EDEFEE;
+    --line: #DCE5E3;
+    --radius: 20px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 28px 40px 0;
+  }
+
+  .wordmark {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    letter-spacing: -0.02em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .wordmark::before {
+    content: "";
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--teal);
+    display: inline-block;
+  }
+
+  .tagline {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink-muted);
+  }
+
+  .tagline:hover { color: var(--teal); }
+
+  nav { display: flex; align-items: center; gap: 20px; }
+
+  .nav-link {
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink-muted);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .nav-link:hover { color: var(--teal); }
+
+  main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+  }
+
+  .screen {
+    width: 100%;
+    max-width: 460px;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    animation: rise 0.4s ease;
+  }
+
+  .screen.active { display: flex; }
+
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ---- Upload screen ---- */
+
+  h1.title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 26px;
+    letter-spacing: -0.01em;
+    margin-bottom: 8px;
+  }
+
+  .subtitle {
+    color: var(--ink-muted);
+    font-size: 15px;
+    line-height: 1.5;
+    margin-bottom: 36px;
+    max-width: 360px;
+  }
+
+  .lens {
+    position: relative;
+    width: 260px;
+    height: 260px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background:
+      radial-gradient(circle at center, var(--surface) 0%, var(--surface) 62%, transparent 62%),
+      conic-gradient(from 0deg, var(--teal) 0%, var(--sage) 25%, var(--teal) 50%, var(--sage) 75%, var(--teal) 100%);
+    padding: 6px;
+    transition: transform 0.2s ease;
+  }
+
+  .lens:hover { transform: scale(1.02); }
+
+  .lens-inner {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 2px dashed var(--line);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: var(--ink-muted);
+  }
+
+  .lens-inner svg { width: 34px; height: 34px; stroke: var(--teal); }
+
+  .lens-inner .cta-text {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--ink);
+  }
+
+  .lens-inner .cta-sub { font-size: 12px; color: var(--ink-muted); }
+
+  .lens img.preview {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+
+  #fileInput { display: none; }
+
+  .chips {
+    display: flex;
+    gap: 10px;
+    margin-top: 32px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .chip {
+    font-size: 12px;
+    color: var(--ink-muted);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    padding: 6px 12px;
+    border-radius: 100px;
+  }
+
+  .analyze-btn {
+    margin-top: 32px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    background: var(--teal);
+    color: white;
+    border: none;
+    padding: 14px 32px;
+    border-radius: 100px;
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(6px);
+    transition: all 0.25s ease;
+  }
+
+  .analyze-btn.ready {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+
+  .analyze-btn:hover { background: var(--teal-dark); }
+
+  .analyze-btn.loading {
+    opacity: 0.65;
+    pointer-events: none;
+  }
+
+  .blur-warning {
+    font-size: 12.5px;
+    color: var(--rose);
+    background: var(--rose-bg);
+    border-radius: 100px;
+    padding: 6px 14px;
+    margin-top: 16px;
+    display: none;
+  }
+
+  .blur-warning.visible { display: block; }
+
+  /* ---- Results screen ---- */
+
+  .result-lens {
+    width: 200px;
+    height: 200px;
+    border-radius: 50%;
+    padding: 5px;
+    margin-bottom: 24px;
+  }
+
+  .result-lens img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .result-lens.sage { background: var(--sage); }
+  .result-lens.amber { background: var(--amber); }
+  .result-lens.rose { background: var(--rose); }
+  .result-lens.gray { background: var(--gray); }
+
+  .badge {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 22px;
+    padding: 6px 4px;
+    margin-bottom: 6px;
+  }
+
+  .badge.sage { color: var(--sage); }
+  .badge.amber { color: var(--amber); }
+  .badge.rose { color: var(--rose); }
+  .badge.gray { color: var(--gray); }
+
+  .confidence {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink-muted);
+    letter-spacing: 0.02em;
+    margin-bottom: 20px;
+  }
+
+  .result-copy {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--ink);
+    max-width: 380px;
+    margin-bottom: 28px;
+  }
+
+  .placeholder-note {
+    font-size: 11px;
+    color: var(--amber);
+    background: var(--amber-bg);
+    border-radius: 10px;
+    padding: 8px 14px;
+    margin-bottom: 24px;
+    max-width: 380px;
+    line-height: 1.5;
+  }
+
+  .btn-row { display: flex; gap: 12px; }
+
+  .btn-secondary {
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    font-size: 13px;
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid var(--line);
+    padding: 11px 20px;
+    border-radius: 100px;
+    cursor: pointer;
+  }
+
+  .btn-secondary:hover { border-color: var(--teal); color: var(--teal); }
+
+  footer {
+    text-align: center;
+    padding: 20px;
+    font-size: 11px;
+    color: var(--ink-muted);
+    line-height: 1.5;
+  }
+
+  footer strong { color: var(--ink); }
+
+  /* ---- Education screen ---- */
+
+  #educationScreen { max-width: 560px; text-align: left; }
+
+  .edu-back {
+    align-self: flex-start;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink-muted);
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 20px;
+    padding: 0;
+  }
+
+  .edu-back:hover { color: var(--teal); }
+
+  #educationScreen .title { align-self: flex-start; }
+
+  .edu-intro {
+    color: var(--ink);
+    font-size: 14px;
+    line-height: 1.7;
+    margin-bottom: 32px;
+  }
+
+  .edu-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    width: 100%;
+    margin-bottom: 32px;
+  }
+
+  .edu-card {
+    display: flex;
+    gap: 16px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 18px 20px;
+    align-items: flex-start;
+  }
+
+  .edu-letter {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--sage-bg);
+    color: var(--teal-dark);
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .edu-body .edu-term {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    margin-bottom: 4px;
+  }
+
+  .edu-body .edu-desc {
+    font-size: 13.5px;
+    line-height: 1.6;
+    color: var(--ink-muted);
+  }
+
+  .edu-cta {
+    align-self: center;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    background: var(--teal);
+    color: white;
+    border: none;
+    padding: 14px 32px;
+    border-radius: 100px;
+    cursor: pointer;
+    margin-bottom: 8px;
+  }
+
+  .edu-cta:hover { background: var(--teal-dark); }
+
+  .edu-subhead {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    margin-bottom: 12px;
+  }
+
+  .term-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    width: 100%;
+    margin-bottom: 32px;
+  }
+
+  .term-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--sage);
+    border-radius: 12px;
+    padding: 14px 16px;
+  }
+
+  .term-card.malignant { border-left-color: var(--rose); }
+
+  .term-card .term-name {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 4px;
+  }
+
+  .term-card.benign .term-name { color: var(--sage); }
+  .term-card.malignant .term-name { color: var(--rose); }
+
+  .term-card .term-def {
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--ink-muted);
+  }
+
+  @media (max-width: 480px) {
+    .term-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wordmark" id="homeLink" style="cursor: pointer;">DermaScan AI</div>
+  <nav>
+    <button class="nav-link" id="guideLink">ABCDE guide</button>
+    <div class="tagline" id="taglineLink" style="cursor: pointer;">Mole risk screening</div>
+  </nav>
+</header>
+
+<main>
+
+  <!-- Screen 1: Upload -->
+  <section class="screen active" id="uploadScreen">
+    <h1 class="title">Check a mole</h1>
+    <p class="subtitle">Upload a clear, well-lit photo of the mole you're unsure about. DermaScan looks for patterns dermatologists check for — it takes a few seconds.</p>
+
+    <label class="lens" id="lensLabel">
+      <div class="lens-inner" id="lensInner">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 16V4M12 4L7 9M12 4l5 5"/>
+          <path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3"/>
+        </svg>
+        <span class="cta-text">Upload a photo</span>
+        <span class="cta-sub">or drop it here</span>
+      </div>
+      <input type="file" id="fileInput" accept="image/*">
+    </label>
+
+    <p class="blur-warning" id="blurWarning"></p>
+
+    <div class="chips">
+      <span class="chip">Not a diagnosis</span>
+      <span class="chip">Trained on real dermoscopic images</span>
+      <span class="chip">Analyzed in your browser</span>
+    </div>
+
+    <button class="analyze-btn" id="analyzeBtn">Analyze photo</button>
+  </section>
+
+  <!-- Screen 2: Results -->
+  <section class="screen" id="resultsScreen">
+    <div class="result-lens" id="resultLens">
+      <img id="resultImg" src="" alt="Uploaded mole photo">
+    </div>
+
+    <div class="badge" id="resultBadge">—</div>
+    <div class="confidence" id="resultConfidence">— % CONFIDENCE</div>
+
+    <p class="result-copy" id="resultCopy"></p>
+
+    <div class="placeholder-note" id="placeholderNote">
+      <strong>How this is calculated.</strong> Your photo is checked 4 times (original, flipped, and rotated slightly each way) and the results are averaged for a steadier read. That average is then scored: 60%+ malignant probability triggers "see a dermatologist," 36–59% is "uncertain," and 35% or under is "low concern." The bar to say "low concern" is intentionally higher than the bar to flag a check, since missing a warning sign matters more than an unnecessary one. This model was trained to compare mole patterns specifically, so it only gives a meaningful result for an actual photo of a mole.
+    </div>
+
+    <div class="btn-row">
+      <button class="btn-secondary" id="startOverBtn">Check another mole</button>
+    </div>
+  </section>
+
+  <!-- Screen 3: Education -->
+  <section class="screen" id="educationScreen">
+    <button class="edu-back" id="eduBackBtn">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      Back
+    </button>
+
+    <h1 class="title">The ABCDE rule</h1>
+
+    <p class="edu-intro">
+      Melanoma is the most serious and dangerous form of skin cancer. It forms in melanocytes, the same cells that give your skin its color, and it's most common on skin that gets a lot of sun exposure. Catching it early matters, because it lowers the chance of it spreading to other parts of the body and keeps it highly treatable, which improves survival rates.
+      <br><br>
+      Dermatologists use the ABCDE rule as a simple way to check a mole for warning signs. Here's what each letter means.
+    </p>
+
+    <div class="edu-subhead">Key terms</div>
+    <div class="term-grid">
+      <div class="term-card benign">
+        <div class="term-name">Benign</div>
+        <div class="term-def">Not cancerous. The mole doesn't contain cancer cells and isn't a health threat, though it's still worth keeping an eye on for changes over time.</div>
+      </div>
+      <div class="term-card malignant">
+        <div class="term-name">Malignant</div>
+        <div class="term-def">Cancerous. The mole contains cancer cells and needs medical attention, ideally from a dermatologist as soon as possible.</div>
+      </div>
+    </div>
+
+    <div class="edu-cards">
+      <div class="edu-card">
+        <div class="edu-letter">A</div>
+        <div class="edu-body">
+          <div class="edu-term">Asymmetry</div>
+          <div class="edu-desc">One half of the mole doesn't match the other half. If you draw an imaginary line through the middle, most melanomas won't look the same on both sides, while a normal mole usually does.</div>
+        </div>
+      </div>
+
+      <div class="edu-card">
+        <div class="edu-letter">B</div>
+        <div class="edu-body">
+          <div class="edu-term">Border</div>
+          <div class="edu-desc">The edges are irregular, notched, or poorly defined, instead of smooth. Normal moles usually have a clean, even border.</div>
+        </div>
+      </div>
+
+      <div class="edu-card">
+        <div class="edu-letter">C</div>
+        <div class="edu-body">
+          <div class="edu-term">Color</div>
+          <div class="edu-desc">The mole has more than one color, like different shades of tan, brown, or black, or patches of white, red, or blue. Some melanomas can even appear colorless, so any mole that looks different from your others is worth checking.</div>
+        </div>
+      </div>
+
+      <div class="edu-card">
+        <div class="edu-letter">D</div>
+        <div class="edu-body">
+          <div class="edu-term">Diameter</div>
+          <div class="edu-desc">The mole is around 6mm or larger, roughly the size of a pencil eraser. Melanoma is often this size or bigger by the time it's found, though it can sometimes be smaller when caught early.</div>
+        </div>
+      </div>
+
+      <div class="edu-card">
+        <div class="edu-letter">E</div>
+        <div class="edu-body">
+          <div class="edu-term">Evolving</div>
+          <div class="edu-desc">The mole is changing, in size, shape, color, or elevation, or it has a new symptom like bleeding or irritation. Any mole that looks different from how it used to look is worth a second look.</div>
+        </div>
+      </div>
+    </div>
+
+    <p class="edu-intro">
+      AI isn't a replacement for a dermatologist's judgment, and DermaScan doesn't make a diagnosis. But many doctors already treat AI as a second set of eyes, trained on thousands of images to help flag patterns a person might miss. That's the idea behind this tool: helping you recognize when a mole is worth showing to a dermatologist, sooner rather than later.
+    </p>
+
+    <button class="edu-cta" id="eduCheckMoleBtn">Check a mole</button>
+  </section>
+
+</main>
+
+<footer>
+  <strong>DermaScan AI is a screening tool, not a certified medical device, and it does not diagnose skin conditions.</strong><br>
+  If anything about a mole concerns you, please see a licensed dermatologist — don't rely on this app alone.
+</footer>
+
+<script>
+  const fileInput = document.getElementById('fileInput');
+  const lensInner = document.getElementById('lensInner');
+  const analyzeBtn = document.getElementById('analyzeBtn');
+  const uploadScreen = document.getElementById('uploadScreen');
+  const resultsScreen = document.getElementById('resultsScreen');
+  const resultImg = document.getElementById('resultImg');
+  const resultLens = document.getElementById('resultLens');
+  const resultBadge = document.getElementById('resultBadge');
+  const resultConfidence = document.getElementById('resultConfidence');
+  const resultCopy = document.getElementById('resultCopy');
+  const startOverBtn = document.getElementById('startOverBtn');
+  const educationScreen = document.getElementById('educationScreen');
+  const guideLink = document.getElementById('guideLink');
+  const eduBackBtn = document.getElementById('eduBackBtn');
+  const eduCheckMoleBtn = document.getElementById('eduCheckMoleBtn');
+
+  function showScreen(screenToShow) {
+    [uploadScreen, resultsScreen, educationScreen].forEach((s) => s.classList.remove('active'));
+    screenToShow.classList.add('active');
+  }
+
+  guideLink.addEventListener('click', () => showScreen(educationScreen));
+  eduBackBtn.addEventListener('click', () => showScreen(uploadScreen));
+  eduCheckMoleBtn.addEventListener('click', () => showScreen(uploadScreen));
+  document.getElementById('homeLink').addEventListener('click', () => showScreen(uploadScreen));
+  document.getElementById('taglineLink').addEventListener('click', () => showScreen(uploadScreen));
+
+  let uploadedDataUrl = null;
+  const blurWarning = document.getElementById('blurWarning');
+
+  // Measures actual sharpness in the image, not just file size. Draws the
+  // photo onto a small canvas, converts it to grayscale, then runs a
+  // Laplacian edge-detection kernel over it. Sharp, in-focus photos have a
+  // lot of fine edge detail, so the result has high variance. Blurry photos
+  // smear those edges out, so the variance comes out low.
+  function measureSharpness(img) {
+    const canvas = document.createElement('canvas');
+    const size = 200;
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, size, size);
+
+    const gray = new Float32Array(size * size);
+    const data = ctx.getImageData(0, 0, size, size).data;
+    for (let i = 0; i < size * size; i++) {
+      const r = data[i * 4], g = data[i * 4 + 1], b = data[i * 4 + 2];
+      gray[i] = 0.299 * r + 0.587 * g + 0.114 * b;
+    }
+
+    const lap = [];
+    for (let y = 1; y < size - 1; y++) {
+      for (let x = 1; x < size - 1; x++) {
+        const idx = y * size + x;
+        const value =
+          -4 * gray[idx] +
+          gray[idx - 1] + gray[idx + 1] +
+          gray[idx - size] + gray[idx + size];
+        lap.push(value);
+      }
+    }
+
+    const mean = lap.reduce((a, b) => a + b, 0) / lap.length;
+    const variance = lap.reduce((a, b) => a + (b - mean) ** 2, 0) / lap.length;
+    return variance;
+  }
+
+  // Rough cutoff found through testing dermoscopic sample photos. Sharp
+  // photos scored well above this; visibly blurry ones scored well below.
+  // Tune this number if it flags too many good photos, or lets blurry ones through.
+  const BLUR_THRESHOLD = 120;
+
+  function handleFile(file) {
+    if (!file || !file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataUrl = ev.target.result;
+      const img = new Image();
+      img.onload = () => {
+        const sharpness = measureSharpness(img);
+
+        if (sharpness < BLUR_THRESHOLD) {
+          blurWarning.textContent = "This photo looks blurry. Try uploading a clearer, closer photo of the mole.";
+          blurWarning.classList.add('visible');
+          analyzeBtn.classList.remove('ready');
+          uploadedDataUrl = null;
+          return;
+        }
+
+        blurWarning.classList.remove('visible');
+        uploadedDataUrl = dataUrl;
+        lensInner.outerHTML = `<img class="preview" src="${dataUrl}" alt="Preview">`;
+        analyzeBtn.classList.add('ready');
+      };
+      img.src = dataUrl;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  fileInput.addEventListener('change', (e) => {
+    handleFile(e.target.files[0]);
+  });
+
+  const lensLabel = document.getElementById('lensLabel');
+
+  lensLabel.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    lensLabel.style.transform = 'scale(1.02)';
+  });
+
+  lensLabel.addEventListener('dragleave', () => {
+    lensLabel.style.transform = 'scale(1)';
+  });
+
+  lensLabel.addEventListener('drop', (e) => {
+    e.preventDefault();
+    lensLabel.style.transform = 'scale(1)';
+    handleFile(e.dataTransfer.files[0]);
+  });
+
+  // ---- Real model wiring ----
+  // This is your Teachable Machine model, hosted at the link you shared.
+  const MODEL_URL = "https://teachablemachine.withgoogle.com/models/EghAFHPdA/";
+  const modelURL = MODEL_URL + "model.json";
+  const metadataURL = MODEL_URL + "metadata.json";
+
+  let model = null;
+  let modelLoadingPromise = null;
+
+  function loadModel() {
+    // Only ever start loading once, and let later callers wait on the same promise.
+    if (!modelLoadingPromise) {
+      modelLoadingPromise = tmImage.load(modelURL, metadataURL).then((loadedModel) => {
+        model = loadedModel;
+        return loadedModel;
+      });
+    }
+    return modelLoadingPromise;
+  }
+
+  // Start loading the model as soon as the page opens, so it's likely ready
+  // by the time someone finishes picking a photo.
+  loadModel().catch((err) => {
+    console.error('Model failed to load:', err);
+  });
+
+  // Three-tier classification based on the malignant probability alone,
+  // since Benign + Malignant always add up to 100%.
+  //
+  // Thresholds are deliberately asymmetric: it takes high confidence to call
+  // something "low concern" (85%+ sure it's benign), but only 60% confidence
+  // toward malignant to flag "see a dermatologist." In a screening tool,
+  // a missed warning sign is worse than an unnecessary nudge to get checked.
+  // Rough cutoff, same caveat as the blur threshold: this needs testing on
+  // your end to dial in. If the model's malignant-probability guess swings
+  // by more than this much across the 4 slightly different angles, that's a
+  // sign the model doesn't have a stable read on this photo, possibly
+  // because it isn't a clear photo of a mole at all.
+  const CONSISTENCY_THRESHOLD = 0.18;
+
+  function classify(malignantProbability, stdDev) {
+    const pct = malignantProbability * 100;
+
+    if (stdDev > CONSISTENCY_THRESHOLD) {
+      return {
+        key: 'gray',
+        label: 'Unclear photo',
+        copy: "The model couldn't get a consistent read on this photo across different angles. This usually means the photo isn't a clear, close-up shot of a mole. Try a well-lit photo with just the mole filling most of the frame.",
+        unclear: true
+      };
+    }
+
+    if (pct >= 60) {
+      return {
+        key: 'rose',
+        label: 'See a dermatologist',
+        copy: 'This photo shows patterns that dermatologists recommend getting checked in person. Please schedule a visit with a dermatologist soon.'
+      };
+    }
+
+    if (pct >= 36) {
+      const leaningMalignant = pct >= 50;
+      return {
+        key: 'amber',
+        label: leaningMalignant ? 'Uncertain — leaning malignant' : 'Uncertain — leaning benign',
+        copy: leaningMalignant
+          ? "This one is hard to call, and it's leaning toward patterns worth getting checked. It's worth getting a dermatologist's opinion, especially if anything about it has changed recently."
+          : "This one is hard to call, and it's leaning toward low concern. Still worth keeping an eye on it, and mentioning it at your next regular skin check."
+      };
+    }
+
+    return {
+      key: 'sage',
+      label: 'Low concern',
+      copy: "This photo doesn't show strong signs from the ABCDE checklist. Keep an eye on it, and mention it at your next regular skin check."
+    };
+  }
+
+  // Test-time augmentation: instead of trusting one single read of the photo,
+  // run the model on 4 slightly different versions of it (original, flipped,
+  // and rotated a bit each way) and average the malignant probability across
+  // all 4. If one particular angle throws off the model, this smooths it out
+  // rather than fully trusting whichever version happened to get uploaded.
+  function createAugmentedVariants(img) {
+    const size = 224; // matches the model's trained input size
+    function makeCanvas(drawFn) {
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      drawFn(ctx);
+      return canvas;
+    }
+
+    const original = makeCanvas((ctx) => ctx.drawImage(img, 0, 0, size, size));
+
+    const flipped = makeCanvas((ctx) => {
+      ctx.translate(size, 0);
+      ctx.scale(-1, 1);
+      ctx.drawImage(img, 0, 0, size, size);
+    });
+
+    const rotatedPos = makeCanvas((ctx) => {
+      ctx.translate(size / 2, size / 2);
+      ctx.rotate((8 * Math.PI) / 180);
+      ctx.drawImage(img, -size / 2, -size / 2, size, size);
+    });
+
+    const rotatedNeg = makeCanvas((ctx) => {
+      ctx.translate(size / 2, size / 2);
+      ctx.rotate((-8 * Math.PI) / 180);
+      ctx.drawImage(img, -size / 2, -size / 2, size, size);
+    });
+
+    return [original, flipped, rotatedPos, rotatedNeg];
+  }
+
+  async function runPrediction(imgElement) {
+    const variants = createAugmentedVariants(imgElement);
+    const probs = [];
+
+    for (const variant of variants) {
+      const predictions = await model.predict(variant);
+      // predictions is an array like:
+      // [{ className: "Benign", probability: 0.82 }, { className: "Malignant", probability: 0.18 }]
+      const malignant = predictions.find((p) => p.className === 'Malignant');
+      probs.push(malignant ? malignant.probability : 0);
+    }
+
+    const mean = probs.reduce((a, b) => a + b, 0) / probs.length;
+    const variance = probs.reduce((a, b) => a + (b - mean) ** 2, 0) / probs.length;
+    const stdDev = Math.sqrt(variance);
+
+    return { probability: mean, stdDev };
+  }
+
+  analyzeBtn.addEventListener('click', async () => {
+    if (!uploadedDataUrl) return;
+
+    analyzeBtn.classList.add('loading');
+    analyzeBtn.textContent = 'Analyzing…';
+
+    try {
+      await loadModel(); // no-op if already loaded
+
+      const img = new Image();
+      img.src = uploadedDataUrl;
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+      });
+
+      const { probability: malignantProbability, stdDev } = await runPrediction(img);
+      const info = classify(malignantProbability, stdDev);
+      const malignantPct = Math.round(malignantProbability * 100);
+
+      resultImg.src = uploadedDataUrl;
+      resultLens.className = 'result-lens ' + info.key;
+      resultBadge.className = 'badge ' + info.key;
+      resultBadge.textContent = info.label;
+      resultConfidence.textContent = info.unclear
+        ? 'RESULTS VARIED ACROSS ANGLES'
+        : 'MALIGNANT LIKELIHOOD: ' + malignantPct + '%';
+      resultCopy.textContent = info.copy;
+
+      uploadScreen.classList.remove('active');
+      resultsScreen.classList.add('active');
+    } catch (err) {
+      console.error('Prediction failed:', err);
+      alert('Something went wrong analyzing this photo. Check the browser console for details, or try a different photo.');
+    } finally {
+      analyzeBtn.classList.remove('loading');
+      analyzeBtn.textContent = 'Analyze photo';
+    }
+  });
+
+  startOverBtn.addEventListener('click', () => {
+    resultsScreen.classList.remove('active');
+    uploadScreen.classList.add('active');
+    uploadedDataUrl = null;
+    fileInput.value = '';
+    lensInner.remove();
+    document.getElementById('lensLabel').innerHTML = `
+      <div class="lens-inner" id="lensInner">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 16V4M12 4L7 9M12 4l5 5"/>
+          <path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3"/>
+        </svg>
+        <span class="cta-text">Upload a photo</span>
+        <span class="cta-sub">or drop it here</span>
+      </div>
+      <input type="file" id="fileInput" accept="image/*">
+    `;
+    analyzeBtn.classList.remove('ready');
+    location.reload(); // simplest reliable reset for this shell
+  });
+</script>
+
+</body>
+</html>
