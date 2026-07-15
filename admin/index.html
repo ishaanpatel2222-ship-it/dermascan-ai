@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DermaScan Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F4F7F6;
+    --surface: #FFFFFF;
+    --ink: #16262B;
+    --ink-muted: #5B6B6E;
+    --teal: #1B6B63;
+    --teal-dark: #123F3A;
+    --sage: #4C8577;
+    --sage-bg: #E7F0EC;
+    --rose: #C4574E;
+    --rose-bg: #FBEAE8;
+    --amber: #B98B2E;
+    --amber-bg: #FBF2E1;
+    --gray: #7A8286;
+    --line: #DCE5E3;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3 { font-family: 'Space Grotesk', sans-serif; }
+
+  /* ---- Login screen ---- */
+
+  #loginScreen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .login-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: 40px 36px;
+    width: 100%;
+    max-width: 360px;
+    text-align: center;
+  }
+
+  .login-card .wordmark {
+    font-weight: 700;
+    font-size: 18px;
+    letter-spacing: -0.02em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+
+  .login-card .wordmark::before {
+    content: "";
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--teal);
+    display: inline-block;
+  }
+
+  .login-card .sub {
+    font-size: 13px;
+    color: var(--ink-muted);
+    margin-bottom: 28px;
+  }
+
+  .field { text-align: left; margin-bottom: 14px; }
+
+  .field label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--ink-muted);
+    display: block;
+    margin-bottom: 6px;
+  }
+
+  .field input {
+    width: 100%;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    padding: 11px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--ink);
+  }
+
+  .field input:focus { outline: none; border-color: var(--teal); }
+
+  .login-btn {
+    width: 100%;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    background: var(--teal);
+    color: white;
+    border: none;
+    padding: 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    margin-top: 6px;
+  }
+
+  .login-btn:hover { background: var(--teal-dark); }
+
+  .login-error {
+    font-size: 12.5px;
+    color: var(--rose);
+    background: var(--rose-bg);
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin-top: 14px;
+    display: none;
+  }
+
+  .login-error.visible { display: block; }
+
+  /* ---- Dashboard ---- */
+
+  #dashboard { display: none; max-width: 920px; margin: 0 auto; padding: 40px 24px 60px; }
+  #dashboard.visible { display: block; }
+
+  .dash-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 32px;
+  }
+
+  .dash-header .wordmark {
+    font-weight: 700;
+    font-size: 18px;
+    letter-spacing: -0.02em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .dash-header .wordmark::before {
+    content: "";
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--teal);
+    display: inline-block;
+  }
+
+  .logout-btn {
+    font-family: 'Inter', sans-serif;
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--ink-muted);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    padding: 8px 14px;
+    border-radius: 100px;
+    cursor: pointer;
+  }
+
+  .logout-btn:hover { color: var(--rose); border-color: var(--rose); }
+
+  .stat-cards {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 14px;
+    margin-bottom: 32px;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 18px 20px;
+  }
+
+  .stat-card .num {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+    font-size: 26px;
+    color: var(--teal);
+  }
+
+  .stat-card .label {
+    font-size: 12px;
+    color: var(--ink-muted);
+    margin-top: 4px;
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 22px;
+  }
+
+  .panel h2 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 18px;
+  }
+
+  .breakdown-row { margin-bottom: 14px; }
+
+  .breakdown-row:last-child { margin-bottom: 0; }
+
+  .breakdown-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12.5px;
+    margin-bottom: 6px;
+  }
+
+  .breakdown-labels .name { font-weight: 500; }
+  .breakdown-labels .count { font-family: 'JetBrains Mono', monospace; color: var(--ink-muted); }
+
+  .breakdown-bar-track {
+    width: 100%;
+    height: 8px;
+    background: var(--bg);
+    border-radius: 100px;
+    overflow: hidden;
+  }
+
+  .breakdown-bar-fill { height: 100%; border-radius: 100px; transition: width 0.5s ease; }
+
+  .list-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-top: 1px solid var(--line);
+    font-size: 13px;
+    gap: 12px;
+  }
+
+  .list-row:first-child { border-top: none; }
+
+  .list-tag {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 12px;
+    padding: 3px 10px;
+    border-radius: 100px;
+    white-space: nowrap;
+  }
+
+  .list-tag.sage { color: var(--sage); background: var(--sage-bg); }
+  .list-tag.amber { color: var(--amber); background: var(--amber-bg); }
+  .list-tag.rose { color: var(--rose); background: var(--rose-bg); }
+  .list-tag.gray { color: var(--gray); background: var(--bg); }
+
+  .list-time {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-muted);
+    white-space: nowrap;
+  }
+
+  .list-message { flex: 1; color: var(--ink); }
+
+  .empty-state {
+    text-align: center;
+    color: var(--ink-muted);
+    font-size: 13px;
+    padding: 24px 0;
+  }
+
+  @media (max-width: 800px) {
+    .stat-cards { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  @media (max-width: 600px) {
+    .stat-cards { grid-template-columns: 1fr; }
+    .list-row { flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Login screen -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="wordmark">DermaScan AI</div>
+    <div class="sub">Private admin dashboard</div>
+
+    <div class="field">
+      <label for="emailInput">Email</label>
+      <input type="email" id="emailInput" autocomplete="username">
+    </div>
+    <div class="field">
+      <label for="passwordInput">Password</label>
+      <input type="password" id="passwordInput" autocomplete="current-password">
+    </div>
+
+    <button class="login-btn" id="loginBtn">Log in</button>
+    <p class="login-error" id="loginError"></p>
+  </div>
+</div>
+
+<!-- Dashboard -->
+<div id="dashboard">
+  <div class="dash-header">
+    <div class="wordmark">DermaScan admin</div>
+    <button class="logout-btn" id="logoutBtn">Log out</button>
+  </div>
+
+  <div class="stat-cards">
+    <div class="stat-card">
+      <div class="num" id="statVisits">—</div>
+      <div class="label">total visits</div>
+    </div>
+    <div class="stat-card">
+      <div class="num" id="statUniqueVisitors">—</div>
+      <div class="label">unique visitors</div>
+    </div>
+    <div class="stat-card">
+      <div class="num" id="statTotal">—</div>
+      <div class="label">total scans</div>
+    </div>
+    <div class="stat-card">
+      <div class="num" id="statFeedback">—</div>
+      <div class="label">feedback received</div>
+    </div>
+    <div class="stat-card">
+      <div class="num" id="statToday">—</div>
+      <div class="label">scans today</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Result breakdown</h2>
+    <div id="breakdownContent">
+      <p class="empty-state">Loading…</p>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Visitors by country</h2>
+    <div id="countryContent">
+      <p class="empty-state">Loading…</p>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Recent scans</h2>
+    <div id="recentScansContent">
+      <p class="empty-state">Loading…</p>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Feedback</h2>
+    <div id="feedbackContent">
+      <p class="empty-state">Loading…</p>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { getFirestore, collection, getDocs, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAk_EDuDxPgIQ1tKiHer8RM9_ZCcGYHzX8",
+    authDomain: "dermascan-data.firebaseapp.com",
+    projectId: "dermascan-data",
+    storageBucket: "dermascan-data.firebasestorage.app",
+    messagingSenderId: "1090558004220",
+    appId: "1:1090558004220:web:1030a93044028b72398079",
+    measurementId: "G-8H1FYXR7S9"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  const loginScreen = document.getElementById('loginScreen');
+  const dashboard = document.getElementById('dashboard');
+  const emailInput = document.getElementById('emailInput');
+  const passwordInput = document.getElementById('passwordInput');
+  const loginBtn = document.getElementById('loginBtn');
+  const loginError = document.getElementById('loginError');
+  const logoutBtn = document.getElementById('logoutBtn');
+
+  loginBtn.addEventListener('click', async () => {
+    loginError.classList.remove('visible');
+    try {
+      await signInWithEmailAndPassword(auth, emailInput.value.trim(), passwordInput.value);
+    } catch (err) {
+      loginError.textContent = "Couldn't log in. Check your email and password and try again.";
+      loginError.classList.add('visible');
+    }
+  });
+
+  passwordInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') loginBtn.click();
+  });
+
+  logoutBtn.addEventListener('click', () => signOut(auth));
+
+  const TAG_LABELS = { sage: 'sage', amber: 'amber', rose: 'rose', gray: 'gray' };
+
+  function formatTime(ts) {
+    if (!ts || !ts.toDate) return '—';
+    const d = ts.toDate();
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' · ' +
+      d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  }
+
+  function isToday(ts) {
+    if (!ts || !ts.toDate) return false;
+    const d = ts.toDate();
+    const now = new Date();
+    return d.toDateString() === now.toDateString();
+  }
+
+  async function loadDashboard() {
+    const visitsSnap = await getDocs(query(collection(db, 'visits'), orderBy('timestamp', 'desc'), limit(1000)));
+    const resultsSnap = await getDocs(query(collection(db, 'results'), orderBy('timestamp', 'desc'), limit(500)));
+    const feedbackSnap = await getDocs(query(collection(db, 'feedback'), orderBy('timestamp', 'desc'), limit(200)));
+
+    const visits = visitsSnap.docs.map((d) => d.data());
+    const results = resultsSnap.docs.map((d) => d.data());
+    const feedback = feedbackSnap.docs.map((d) => d.data());
+
+    // ---- Stat cards ----
+    document.getElementById('statVisits').textContent = visits.length;
+    document.getElementById('statUniqueVisitors').textContent = new Set(visits.map((v) => v.visitorId).filter(Boolean)).size;
+    document.getElementById('statTotal').textContent = results.length;
+    document.getElementById('statFeedback').textContent = feedback.length;
+    document.getElementById('statToday').textContent = results.filter((r) => isToday(r.timestamp)).length;
+
+    // ---- Breakdown ----
+    const counts = { sage: 0, amber: 0, rose: 0, gray: 0 };
+    results.forEach((r) => {
+      if (counts[r.categoryKey] !== undefined) counts[r.categoryKey]++;
+    });
+    const total = results.length || 1;
+
+    const breakdownRows = [
+      { key: 'sage', label: 'Low concern', color: 'var(--sage)' },
+      { key: 'amber', label: 'Uncertain', color: 'var(--amber)' },
+      { key: 'rose', label: 'See a dermatologist', color: 'var(--rose)' },
+      { key: 'gray', label: 'Unclear photo', color: 'var(--gray)' }
+    ];
+
+    const breakdownEl = document.getElementById('breakdownContent');
+    if (results.length === 0) {
+      breakdownEl.innerHTML = '<p class="empty-state">No scans logged yet. Try the app to see data here.</p>';
+    } else {
+      breakdownEl.innerHTML = breakdownRows.map((row) => {
+        const count = counts[row.key];
+        const pct = Math.round((count / total) * 100);
+        return `
+          <div class="breakdown-row">
+            <div class="breakdown-labels">
+              <span class="name">${row.label}</span>
+              <span class="count">${count} · ${pct}%</span>
+            </div>
+            <div class="breakdown-bar-track">
+              <div class="breakdown-bar-fill" style="width:${pct}%; background:${row.color};"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // ---- Visitors by country ----
+    const countryCounts = {};
+    visits.forEach((v) => {
+      const c = v.country || 'Unknown';
+      countryCounts[c] = (countryCounts[c] || 0) + 1;
+    });
+    const countryTotal = visits.length || 1;
+    const sortedCountries = Object.entries(countryCounts).sort((a, b) => b[1] - a[1]);
+
+    const countryEl = document.getElementById('countryContent');
+    if (visits.length === 0) {
+      countryEl.innerHTML = '<p class="empty-state">No visits logged yet.</p>';
+    } else {
+      countryEl.innerHTML = sortedCountries.slice(0, 10).map(([name, count]) => {
+        const pct = Math.round((count / countryTotal) * 100);
+        return `
+          <div class="breakdown-row">
+            <div class="breakdown-labels">
+              <span class="name">${name}</span>
+              <span class="count">${count} · ${pct}%</span>
+            </div>
+            <div class="breakdown-bar-track">
+              <div class="breakdown-bar-fill" style="width:${pct}%; background:var(--teal);"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // ---- Recent scans ----
+    const recentEl = document.getElementById('recentScansContent');
+    if (results.length === 0) {
+      recentEl.innerHTML = '<p class="empty-state">No scans yet.</p>';
+    } else {
+      recentEl.innerHTML = results.slice(0, 25).map((r) => `
+        <div class="list-row">
+          <span class="list-tag ${r.categoryKey || 'gray'}">${r.category || 'Unknown'}</span>
+          <span class="list-message">${r.malignantPct != null ? r.malignantPct + '% malignant likelihood' : ''}</span>
+          <span class="list-time">${formatTime(r.timestamp)}</span>
+        </div>
+      `).join('');
+    }
+
+    // ---- Feedback ----
+    const feedbackEl = document.getElementById('feedbackContent');
+    if (feedback.length === 0) {
+      feedbackEl.innerHTML = '<p class="empty-state">No feedback yet.</p>';
+    } else {
+      feedbackEl.innerHTML = feedback.slice(0, 25).map((f) => `
+        <div class="list-row">
+          <span class="list-message">${f.message || ''}</span>
+          <span class="list-time">${formatTime(f.timestamp)}</span>
+        </div>
+      `).join('');
+    }
+  }
+
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      loginScreen.style.display = 'none';
+      dashboard.classList.add('visible');
+      loadDashboard().catch((err) => console.error('Failed to load dashboard:', err));
+    } else {
+      loginScreen.style.display = 'flex';
+      dashboard.classList.remove('visible');
+    }
+  });
+</script>
+
+</body>
+</html>
