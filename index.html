@@ -8,6 +8,53 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
+<script type="module">
+  // Logs anonymous results and optional feedback to Firestore. No photos or
+  // personal info are ever sent, just the category, the malignant %, and a
+  // timestamp. This only powers the private admin dashboard.
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAk_EDuDxPgIQ1tKiHer8RM9_ZCcGYHzX8",
+    authDomain: "dermascan-data.firebaseapp.com",
+    projectId: "dermascan-data",
+    storageBucket: "dermascan-data.firebasestorage.app",
+    messagingSenderId: "1090558004220",
+    appId: "1:1090558004220:web:1030a93044028b72398079",
+    measurementId: "G-8H1FYXR7S9"
+  };
+
+  const firebaseApp = initializeApp(firebaseConfig);
+  const db = getFirestore(firebaseApp);
+
+  window.logDermaScanResult = async function (label, categoryKey, malignantPct) {
+    try {
+      await addDoc(collection(db, "results"), {
+        category: label,
+        categoryKey,
+        malignantPct,
+        timestamp: serverTimestamp()
+      });
+    } catch (err) {
+      console.error("Failed to log result:", err);
+    }
+  };
+
+  window.logDermaScanFeedback = async function (message, category) {
+    try {
+      await addDoc(collection(db, "feedback"), {
+        message,
+        category,
+        timestamp: serverTimestamp()
+      });
+      return true;
+    } catch (err) {
+      console.error("Failed to log feedback:", err);
+      return false;
+    }
+  };
+</script>
 <style>
   :root {
     --bg: #F4F7F6;
@@ -447,6 +494,77 @@
     margin-bottom: 28px;
   }
 
+  .feedback-box {
+    width: 100%;
+    max-width: 380px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 16px 18px;
+    margin-bottom: 22px;
+    text-align: center;
+  }
+
+  .feedback-prompt {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 13.5px;
+    font-weight: 500;
+    margin-bottom: 10px;
+  }
+
+  .feedback-thumbs {
+    display: flex;
+    justify-content: center;
+    gap: 14px;
+    margin-bottom: 12px;
+  }
+
+  .thumb-btn {
+    font-size: 20px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 100px;
+    width: 44px;
+    height: 44px;
+    cursor: pointer;
+    transition: transform 0.15s ease, border-color 0.15s ease;
+  }
+
+  .thumb-btn:hover { transform: scale(1.08); border-color: var(--teal); }
+  .thumb-btn.selected { border-color: var(--teal); background: var(--sage-bg); }
+
+  .feedback-comment-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  .feedback-comment-row input {
+    flex: 1;
+    font-family: 'Inter', sans-serif;
+    font-size: 12.5px;
+    padding: 9px 12px;
+    border-radius: 100px;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--ink);
+  }
+
+  .feedback-comment-row input:focus { outline: none; border-color: var(--teal); }
+
+  .feedback-send-btn {
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    font-size: 12.5px;
+    background: var(--teal);
+    color: white;
+    border: none;
+    padding: 0 16px;
+    border-radius: 100px;
+    cursor: pointer;
+  }
+
+  .feedback-send-btn:hover { background: var(--teal-dark); }
+
   .placeholder-note {
     font-size: 11px;
     color: var(--amber);
@@ -714,6 +832,18 @@
 
       <p class="result-copy" id="resultCopy"></p>
 
+      <div class="feedback-box" id="feedbackBox">
+        <p class="feedback-prompt" id="feedbackPrompt">Was this result helpful?</p>
+        <div class="feedback-thumbs" id="feedbackThumbs">
+          <button class="thumb-btn" id="thumbUpBtn" aria-label="Yes, helpful">👍</button>
+          <button class="thumb-btn" id="thumbDownBtn" aria-label="Not helpful">👎</button>
+        </div>
+        <div class="feedback-comment-row" id="feedbackCommentRow">
+          <input type="text" id="feedbackInput" placeholder="Optional: tell me more" maxlength="300">
+          <button class="feedback-send-btn" id="feedbackSendBtn">Send</button>
+        </div>
+      </div>
+
       <div class="placeholder-note" id="placeholderNote">
         <strong>How this is calculated.</strong> Based on your model's malignant probability: 60%+ triggers "see a dermatologist," 36–59% is "uncertain," and 35% or under is "low concern." The bar to say "low concern" is intentionally higher than the bar to flag a check, since missing a warning sign matters more than an unnecessary one. This model was trained to compare mole patterns specifically, so it only gives a meaningful result for an actual photo of a mole.
       </div>
@@ -819,6 +949,52 @@
   const resultConfidence = document.getElementById('resultConfidence');
   const resultCopy = document.getElementById('resultCopy');
   const startOverBtn = document.getElementById('startOverBtn');
+
+  const feedbackPrompt = document.getElementById('feedbackPrompt');
+  const feedbackThumbs = document.getElementById('feedbackThumbs');
+  const thumbUpBtn = document.getElementById('thumbUpBtn');
+  const thumbDownBtn = document.getElementById('thumbDownBtn');
+  const feedbackCommentRow = document.getElementById('feedbackCommentRow');
+  const feedbackInput = document.getElementById('feedbackInput');
+  const feedbackSendBtn = document.getElementById('feedbackSendBtn');
+
+  function resetFeedbackBox() {
+    feedbackPrompt.textContent = 'Was this result helpful?';
+    thumbUpBtn.classList.remove('selected');
+    thumbDownBtn.classList.remove('selected');
+    feedbackInput.value = '';
+    feedbackThumbs.style.display = 'flex';
+    feedbackCommentRow.style.display = 'flex';
+  }
+
+  async function submitFeedback(message) {
+    const category = resultBadge.textContent;
+    if (window.logDermaScanFeedback) {
+      await window.logDermaScanFeedback(message, category);
+    }
+  }
+
+  thumbUpBtn.addEventListener('click', () => {
+    thumbUpBtn.classList.add('selected');
+    thumbDownBtn.classList.remove('selected');
+    feedbackPrompt.textContent = 'Thanks for letting me know!';
+    submitFeedback('👍');
+  });
+
+  thumbDownBtn.addEventListener('click', () => {
+    thumbDownBtn.classList.add('selected');
+    thumbUpBtn.classList.remove('selected');
+    feedbackPrompt.textContent = 'Thanks, noted.';
+    submitFeedback('👎');
+  });
+
+  feedbackSendBtn.addEventListener('click', () => {
+    const text = feedbackInput.value.trim();
+    if (!text) return;
+    submitFeedback(text);
+    feedbackInput.value = '';
+    feedbackInput.placeholder = 'Thanks for the feedback!';
+  });
   const educationScreen = document.getElementById('educationScreen');
   const guideLink = document.getElementById('guideLink');
   const eduBackBtn = document.getElementById('eduBackBtn');
@@ -1022,6 +1198,14 @@
       splitMalignantLabel.textContent = 'Malignant ' + malignantPct + '%';
 
       resultContent.classList.add('visible');
+
+      // Fire-and-forget: don't block the UI on this, and don't let a
+      // logging failure affect the person's experience of the app.
+      if (window.logDermaScanResult) {
+        window.logDermaScanResult(info.label, info.key, malignantPct);
+      }
+
+      resetFeedbackBox();
 
       // Animate the gauge and split bar on the next frame so the CSS
       // transitions actually run instead of jumping straight to the end value.
