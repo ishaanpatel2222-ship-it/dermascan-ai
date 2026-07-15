@@ -46,12 +46,31 @@
     return id;
   }
 
-  addDoc(collection(db, "visits"), {
-    visitorId: getVisitorId(),
-    timestamp: serverTimestamp()
-  }).catch((err) => {
-    console.error("Failed to log visit:", err);
-  });
+  async function logVisit() {
+    // Looks up the visitor's approximate country from their IP address using
+    // a free public API. No exact address or precise location, just
+    // country-level, similar to what most site analytics tools show.
+    let country = 'Unknown';
+    try {
+      const res = await fetch('https://ipapi.co/json/');
+      const data = await res.json();
+      country = data.country_name || 'Unknown';
+    } catch (err) {
+      console.error('Failed to look up country:', err);
+    }
+
+    try {
+      await addDoc(collection(db, "visits"), {
+        visitorId: getVisitorId(),
+        country,
+        timestamp: serverTimestamp()
+      });
+    } catch (err) {
+      console.error("Failed to log visit:", err);
+    }
+  }
+
+  logVisit();
 
   window.logDermaScanResult = async function (label, categoryKey, malignantPct) {
     try {
