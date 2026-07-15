@@ -31,7 +31,25 @@
   // Logs once per page load, before any upload happens, so the admin
   // dashboard can see everyone who opened the app, not just people who
   // finished a scan.
-  addDoc(collection(db, "visits"), { timestamp: serverTimestamp() }).catch((err) => {
+  //
+  // Each browser gets a random ID stored in localStorage the first time it
+  // visits, and reuses it every time after. This isn't a real login or
+  // account, it's just enough to tell "same browser coming back" from "a
+  // new person," so the admin dashboard can show both a raw visit count
+  // and a deduplicated unique-visitor count.
+  function getVisitorId() {
+    let id = localStorage.getItem('dermascan_visitor_id');
+    if (!id) {
+      id = (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random());
+      localStorage.setItem('dermascan_visitor_id', id);
+    }
+    return id;
+  }
+
+  addDoc(collection(db, "visits"), {
+    visitorId: getVisitorId(),
+    timestamp: serverTimestamp()
+  }).catch((err) => {
     console.error("Failed to log visit:", err);
   });
 
