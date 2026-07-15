@@ -28,6 +28,13 @@
   const firebaseApp = initializeApp(firebaseConfig);
   const db = getFirestore(firebaseApp);
 
+  // Logs once per page load, before any upload happens, so the admin
+  // dashboard can see everyone who opened the app, not just people who
+  // finished a scan.
+  addDoc(collection(db, "visits"), { timestamp: serverTimestamp() }).catch((err) => {
+    console.error("Failed to log visit:", err);
+  });
+
   window.logDermaScanResult = async function (label, categoryKey, malignantPct) {
     try {
       await addDoc(collection(db, "results"), {
